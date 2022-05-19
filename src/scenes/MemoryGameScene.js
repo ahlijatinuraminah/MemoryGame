@@ -20,6 +20,8 @@ export default class MemoryGameScene extends Phaser.Scene
 		this.cursors = this.input.keyboard.createCursorKeys()
         this.activeBox = undefined
         this.itemsGroup = undefined
+        this.selectedBoxes = []
+        this.matchesCount = 0
     }
 
 	preload() {
@@ -130,6 +132,11 @@ export default class MemoryGameScene extends Phaser.Scene
 
     movePlayer(player)
 	{
+        if (!this.player.active)
+		{
+			return
+		}
+        
 		const speed = 200
 
 		if (this.cursors.left.isDown)
@@ -170,6 +177,13 @@ export default class MemoryGameScene extends Phaser.Scene
 
     handlePlayerBoxCollide(player, box)
 	{		
+        const opened = box.getData('opened')
+		
+		if (opened)
+		{
+			return
+		}
+
 		if (this.activeBox)
 		{
 			return
@@ -178,12 +192,7 @@ export default class MemoryGameScene extends Phaser.Scene
 		this.activeBox = box
 		this.activeBox.setFrame(9)
 
-        const opened = box.getData('opened')
-		
-		if (opened)
-		{
-			return
-		}
+        
 	}
 
     updateActiveBox()
@@ -215,7 +224,6 @@ export default class MemoryGameScene extends Phaser.Scene
 		}
 
 		const itemType = box.getData('itemType')
-		// console.log(itemType)
 		
 		/** @type {Phaser.GameObjects.Sprite} */
 		let item
@@ -254,5 +262,109 @@ export default class MemoryGameScene extends Phaser.Scene
 		}
 
 		box.setData('opened', true)		
+
+        item.setData('sorted', true)
+		item.setDepth(2000)
+
+		item.setActive(true)
+		item.setVisible(true)
+
+		item.scale = 0
+		item.alpha = 0
+
+        this.selectedBoxes.push({ box, item })
+
+		this.tweens.add({
+			targets: item,
+			y: '-=50',
+			alpha: 1,
+			scale: 1,
+			duration: 500,		
+            onComplete: () => {
+				if (itemType === 0)
+				{
+					this.handleBearSelected()
+					return
+				}
+
+				if (this.selectedBoxes.length < 2)
+				{
+					return
+				}
+
+				this.checkForMatch()
+			}	
+		})
 	}
+
+    handleBearSelected()
+	{
+		const { box, item } = this.selectedBoxes.pop()
+
+		item.setTint(0xff0000)
+		box.setFrame(20)
+
+		this.player.active = false
+		this.player.setVelocity(0, 0)
+
+		this.time.delayedCall(1000, () => {
+			item.setTint(0xffffff)
+			box.setFrame(7)
+			box.setData('opened', false)
+
+			this.tweens.add({
+				targets: item,
+				y: '+=50',
+				alpha: 0,
+				scale: 0,
+				duration: 300,
+				onComplete: () => {
+					this.player.active = true
+				}
+			})
+		})
+	
+	}
+
+    checkForMatch()
+	{
+		const second = this.selectedBoxes.pop()
+		const first = this.selectedBoxes.pop()
+
+		if (first.item.texture !== second.item.texture)
+		{
+			this.tweens.add({
+				targets: [first.item, second.item],
+				y: '+=50',
+				alpha: 0,
+				scale: 0,
+				duration: 300,
+				delay: 1000,
+				onComplete: () => {
+					this.itemsGroup.killAndHide(first.item)
+					this.itemsGroup.killAndHide(second.item)
+
+					first.box.setData('opened', false)
+					second.box.setData('opened', false)
+				},
+			})
+			
+			return
+		}
+
+        ++this.matchesCount
+
+        this.time.delayedCall(1000, () => {
+			first.box.setFrame(8)
+			second.box.setFrame(8)
+
+            if (this.matchesCount >= 4)
+			{
+				this.player.active = false
+				this.player.setVelocity(0, 0)
+            }
+        })
+
+		
+	}	
 }
