@@ -22,6 +22,9 @@ export default class MemoryGameScene extends Phaser.Scene
         this.itemsGroup = undefined
         this.selectedBoxes = []
         this.matchesCount = 0
+        this.countdownTimer = 10
+		this.timerLabel = undefined
+		this.timedEvent = undefined
     }
 
 	preload() {
@@ -45,6 +48,14 @@ export default class MemoryGameScene extends Phaser.Scene
 
         this.physics.add.collider(this.player, this.boxGroup, this.handlePlayerBoxCollide, undefined, this)
         this.itemsGroup = this.add.group()
+
+        this.timerLabel = this.add.text(this.halfWidth, 16, null)
+        this.timedEvent = this.time.addEvent({
+            delay: 1000,
+            callback: this.gameOver,
+            callbackScope: this,
+            loop: true
+        })
     }
 
     update() {
@@ -63,6 +74,14 @@ export default class MemoryGameScene extends Phaser.Scene
 		})
 
         this.updateActiveBox()
+
+        this.timerLabel.setStyle({
+			fontSize: '24px',
+			fill : '#ffffff',
+			fontStyle: 'bold',
+			align : 'center'
+		// @ts-ignore
+		}).setText(this.countdownTimer)
     }
 
     createBoxes()
@@ -136,7 +155,7 @@ export default class MemoryGameScene extends Phaser.Scene
 		{
 			return
 		}
-        
+
 		const speed = 200
 
 		if (this.cursors.left.isDown)
@@ -362,9 +381,28 @@ export default class MemoryGameScene extends Phaser.Scene
 			{
 				this.player.active = false
 				this.player.setVelocity(0, 0)
+
+                this.add.text(this.halfWidth, this.halfHeight + 250 , 'You Win!', {
+					fontSize: 60
+				}).setOrigin(0.5)
+
+				this.countdownTimer = undefined
             }
         })
-
-		
 	}	
+
+    gameOver()
+    {
+        this.countdownTimer -= 1
+        if (this.countdownTimer == 0) {
+			
+			// this.scene.start('game-over-scene')
+			this.add.text(this.halfWidth, this.halfHeight + 250, 'You Lose!', {
+				fontSize: 60
+			}).setOrigin(0.5)
+			this.countdownTimer = undefined
+			this.player.active = false
+			this.player.setVelocity(0, 0)
+        }
+    }
 }
